@@ -29,21 +29,6 @@ function storefront_page_header() {
 }
 
 /**
- * Override storefront_cart_link. Only include cart in primary navigation for woocommerce related pages.
- */
-/*
-function storefront_cart_link() {
-	if ( is_woocommerce() || is_cart() || is_checkout() ) {
-		?>
-			<a class="cart-contents" href="<?php echo esc_url( WC()->cart->get_cart_url() ); ?>" title="<?php esc_attr_e( 'View your shopping cart', 'storefront' ); ?>">
-				<span class="amount"><?php echo wp_kses_data( WC()->cart->get_cart_subtotal() ); ?></span> <span class="count"><?php echo wp_kses_data( sprintf( _n( '%d item', '%d items', WC()->cart->get_cart_contents_count(), 'storefront' ), WC()->cart->get_cart_contents_count() ) );?></span>
-			</a>
-		<?php
-	}
-}
-*/
-
-/**
  * Don't display credit link.
  */
 function criteostorefrontchild_storefront_credit_link() {
@@ -63,3 +48,49 @@ function criteostorefrontchild_woocommerce_product_tabs( $tabs ) {
 	return $tabs;
 }
 add_filter( 'woocommerce_product_tabs', 'criteostorefrontchild_woocommerce_product_tabs', 99 );
+
+/**
+ * Replace product search with Exercise selector
+ */
+function storefront_product_search() {
+	Criteo_OneTag::render_exercise_select_box();
+}
+
+
+function storefront_site_title_or_logo() {
+	Criteo_OneTag::site_title_or_logo();
+}
+
+// Remove breadcrumbs
+function woocommerce_breadcrumb() {
+	?>
+	<nav class="woocommerce-breadcrumb" <?php echo ( is_single() ? 'itemprop="breadcrumb"' : '' ); ?>>
+		<span class="exercise-description"><?php echo esc_html( Criteo_OneTag::get_instance()->get_exercise_description() ); ?></span>
+		<?php
+		if ( is_user_logged_in() ) {
+		?>
+			<span class="exercise-answer"><?php echo esc_html( Criteo_OneTag::get_instance()->get_exercise_answer() ); ?></span>
+		<?php
+		}
+		?>
+	</nav>
+	<?php
+}
+
+// Perform actions in wp_head
+function criteostorefrontchild_wp_head() {
+	// Remove sorting
+	remove_action( 'woocommerce_before_shop_loop', 'woocommerce_catalog_ordering', 10 );
+	remove_action( 'woocommerce_before_shop_loop', 'woocommerce_result_count', 20 );
+	remove_action( 'woocommerce_before_shop_loop', 'storefront_woocommerce_pagination', 30 );
+	remove_action( 'woocommerce_after_shop_loop', 'woocommerce_catalog_ordering', 10 );
+	remove_action( 'woocommerce_after_shop_loop', 'woocommerce_result_count', 20 );
+	remove_action( 'woocommerce_after_shop_loop', 'woocommerce_pagination', 30 );
+}
+add_action( 'wp_head', 'criteostorefrontchild_wp_head' );
+
+// Remove AJAX add to cart button
+function criteostorefrontchild_woocommerce_loop_add_to_cart_link() {
+	return '';
+}
+add_filter( 'woocommerce_loop_add_to_cart_link', 'criteostorefrontchild_woocommerce_loop_add_to_cart_link', 99 );
