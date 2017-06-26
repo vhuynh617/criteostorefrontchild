@@ -1,6 +1,29 @@
 <?php
 /**
  * Class for rendering Criteo OneTags in Woocommerce. Exercises are product category based.
+ *
+ * Home Page:
+ * OK
+ *
+ * Listing:
+ * Jerseys - OK
+ * Hats - No product ID's in array
+ * Novelties - Product ID's are passed as string instead of items in an array
+ *
+ * Product:
+ * Jerseys - OK
+ * Hats - No product ID's passed resulting in JS error
+ * Novelties - Different ID type, not matching ID's in feed
+ *
+ * Basket:
+ * Jerseys - Child ID's passed which are not in feed.
+ * Hats - Missing comma between item objects.
+ * Novelties - OK
+ *
+ * Sales:
+ * Jerseys - Prices are line totals, not unit price
+ * Hats - OK
+ * Novelties - Hardcoded transaction ID
  */
 
 class Criteo_OneTag {
@@ -19,65 +42,7 @@ class Criteo_OneTag {
 
 	const PARTNERID = "32730";
 
-	private $exercise = 0;
-
-	private $exercises = array(
-		// Default
-		0 => array(
-			'level' => 'Default',
-			'description' => 'All Criteo tags are correctly implemented. Catalog quality is 100%. Use partner [32730] mmsuststraining.',
-			'answer' => 'OK.',
-		),
-		// Beginner
-		1 => array(
-			'level' => 'Beginner 1',
-			'description' => 'Check Home Page tag.',
-			'answer' => 'Missing loader file.',
-		),
-		2 => array(
-			'level' => 'Beginner 2',
-			'description' => 'Check Listing tag.',
-			'answer' => "No product ID's in array.",
-		),
-		3 => array(
-			'level' => 'Beginner 3',
-			'description' => 'Check Product tag.',
-			'answer' => "No product ID's passed resulting in JS error.",
-		),
-		// Intermediate
-		4 => array(
-			'level' => 'Intermediate 1',
-			'description' => 'Check Listing tag.',
-			'answer' => "Product ID's are passed as string instead of items in an array.",
-		),
-		5 => array(
-			'level' => 'Intermediate 2',
-			'description' => 'Check Product tag.',
-			'answer' => "Different ID type passed in tag, not matching ID's in feed.",
-		),
-		6 => array(
-			'level' => 'Intermediate 3',
-			'description' => 'Add multiple items to the cart and check Basket tag.',
-			'answer' => 'Dollar sign prepended to prices causing JS error.',
-		),
-		// Advanced
-		7 => array(
-			'level' => 'Advanced 1',
-			'description' => 'Add jersey type items to the cart and check Basket tag.',
-			'answer' => "Child ID's are being passed which are not in feed.",
-		),
-		8 => array(
-			'level' => 'Advanced 2',
-			'description' => 'Purchase items of varying quanities and check Sales tag.',
-			'answer' => 'Prices are line totals, not unit prices.',
-		),
-		9 => array(
-			'level' => 'Advanced 3',
-			'description' => 'Purchase novelty items and check Sales tag.',
-			'answer' => 'Regular prices being passed instead of sale prices.',
-		),
-	);
-
+	private $exercise = 1;
 
 	/**
 	 * Construct.
@@ -100,18 +65,12 @@ class Criteo_OneTag {
 			add_filter( 'metaslider_image_slide_attributes', array( $this, 'filter_metaslider_image_slide_attributes' ), 99, 3 );
 			add_filter( 'login_headerurl', array( $this, 'filter_login_headerurl' ), 99 );
 			add_filter( 'woocommerce_get_cart_url', array( $this, 'filter_woocommerce_get_cart_url' ), 99 );
+			add_filter( 'woocommerce_widget_cart_is_hidden', array( $this, 'filter_woocommerce_widget_cart_is_hidden' ), 99 );
 			add_filter( 'woocommerce_get_checkout_page_permalink', array( $this, 'filter_woocommerce_get_checkout_page_permalink' ), 9999 );
 
-			add_filter( 'woocommerce_widget_cart_is_hidden', array( $this, 'filter_woocommerce_widget_cart_is_hidden' ), 99 );
-			add_filter( 'wc_add_to_cart_message', array( $this, 'filter_wc_add_to_cart_message' ), 99, 2 );
+
 		}
 	}
-
-	/**
- 	 *
- 	 *	General setup and initialization functions.
- 	 *
- 	 */
 
 	/**
 	 * Add rewrite endpoint for exercises.
@@ -123,6 +82,7 @@ class Criteo_OneTag {
 
 		add_rewrite_rule( 'product-category/(.+?)/page/?([0-9]{1,})/exercise(/(.*))?/?$', 'index.php?product_cat=$matches[1]&paged=$matches[2]&exercise=$matches[4]', 'top');
 		add_rewrite_rule( 'product-category/(.+?)/exercise(/(.*))?/?$', 'index.php?product_cat=$matches[1]&exercise=$matches[3]', 'top');
+		add_rewrite_rule( '(.?.+?)/order-received/(.*)/exercise(/(.*))?/?$', 'index.php?pagename=$matches[1]&order-received=$matches[2]&exercise=$matches[4]', 'top');
 		add_rewrite_rule( '(.?.+?)/exercise(/(.*))?/order-received(/(.*))?/?$', 'index.php?pagename=$matches[1]&exercise=$matches[3]&order-received=$matches[5]', 'top');
 	}
 
@@ -132,28 +92,19 @@ class Criteo_OneTag {
 	 * @action parse_query
 	 */
 	function action_parse_query() {
-		$this->exercise = get_query_var( 'exercise', 0 );
+		$this->exercise = get_query_var( 'exercise', 1 );
+
 	}
 
 	/**
 	 * Enqueue JS.
 	 *
-	 * @todo Fix cart page URL updating after markup is rendered. URL in markup is correct.
-	 *
 	 * @action wp_enqueue_scripts
 	 */
 	function action_wp_enqueue_scripts() {
 		wp_enqueue_script( 'criteo-exercises', get_stylesheet_directory_uri() . '/js/criteo-exercises.js', array( 'jquery' ), '20161206', true );
-
-		// Workaround for cart page URL updating after markup is rendered.
-		wp_localize_script( 'criteo-exercises', 'wcCartURL', esc_url( WC()->cart->get_cart_url() ) );
 	}
 
-	/**
- 	 *
- 	 *	Criteo OneTag logic and tag rendering funcitons.
- 	 *
- 	 */
 
 	/**
 	 * Determine if OneTag should be outputted and render it.
@@ -171,233 +122,6 @@ class Criteo_OneTag {
 			$this->render_basket_tag();
 		}
 	}
-
-	/**
-	 * Render Home Page tag.
-	 */
-	function render_home_page_tag() {
-		ob_start();
-
-		if ( 1 !== (int) $this->exercise ) {
-		?>
-			<script type="text/javascript" src="//static.criteo.net/js/ld/ld.js" async="true"></script>
-		<?php
-		}
-		?>
-			<script type="text/javascript">
-				window.criteo_q = window.criteo_q || [];
-				window.criteo_q.push(
-					{ event: "setAccount", account: <?php echo self::PARTNERID; ?> },
-					{ event: "setSiteType", type: "d" },
-					{ event: "viewHome"}
-				);
-			</script>
-		<?php
-		$onetag = ob_get_clean();
-
-		echo $onetag;
-	}
-
-	/**
-	 * Render Listing tag.
-	 */
-	function render_listing_tag() {
-
-		wp_reset_query();
-
-		$product_ids_array = array();
-		$count = 0;
-
-		while ( have_posts() && $count < 3 ) {
-			the_post();
-
-			$product_ids_array[] = $this->get_sku();
-
-			$count++;
-		}
-
-		$product_ids = implode( ', ', $product_ids_array );
-
-		ob_start();
-		?>
-			<script type="text/javascript" src="//static.criteo.net/js/ld/ld.js" async="true"></script>
-			<script type="text/javascript">
-				window.criteo_q = window.criteo_q || [];
-				window.CriteoProductIDList = window.CriteoProductIDList || [];
-				window.criteo_q.push(
-					{ event: "setAccount", account: <?php echo self::PARTNERID; ?> },
-					{ event: "setSiteType", type: "d" },
-					<?php if ( 2 === (int) $this->exercise ) { ?>
-						{ event: "viewList", item: [] }
-					<?php } else if ( 4 === (int) $this->exercise ) { ?>
-						{ event: "viewList", item: "<?php echo esc_js( $product_ids ); ?>" }
-					<?php } else { ?>
-						{ event: "viewList", item: [<?php echo esc_js( $product_ids ); ?>] }
-					<?php } ?>
-				);
-			</script>
-		<?php
-		$onetag = ob_get_clean();
-
-		echo $onetag;
-
-		wp_reset_query();
-	}
-
-	/**
-	 * Render Product tag.
-	 */
-	function render_product_tag() {
-		global $post;
-
-		$post_id = empty( $post->ID ) ? 0 : $post->ID;
-
-		$product_id = $this->get_sku();
-
-		ob_start();
-		?>
-			<script type="text/javascript" src="//static.criteo.net/js/ld/ld.js" async="true"></script>
-			<script type="text/javascript">
-				window.criteo_q = window.criteo_q || [];
-				window.criteo_q.push(
-					{ event: "setAccount", account: <?php echo self::PARTNERID; ?> },
-					{ event: "setSiteType", type: "d" },
-					<?php if ( 3 === (int) $this->exercise ) { ?>
-						{ event: "viewItem", item:  }
-					<?php } else if ( 5 === (int) $this->exercise ) { ?>
-						{ event: "viewItem", item: <?php echo esc_js( $post_id ); ?> }
-					<?php } else { ?>
-						{ event: "viewItem", item: <?php echo esc_js( $product_id ); ?> }
-					<?php } ?>
-				);
-			</script>
-		<?php
-		$onetag = ob_get_clean();
-
-		echo $onetag;
-	}
-
-	/**
-	 * Render Basket tag.
-	 */
-	function render_basket_tag() {
-
-		global $woocommerce;
-		$items = $woocommerce->cart->get_cart();
-
-		if ( ! empty( $items ) ) {
-
-			$basket_products_array = array();
-
-			foreach( $items as $item => $values ) {
-
-				$product = $values['data'];
-
-				$sku = $product->get_sku();
-
-				if ( ! empty( $product->parent ) && ( 7 !== (int) $this->exercise ) ) {
-					$sku = $product->parent->get_sku();
-				}
-
-				if ( $sku ) {
-
-					$product_price = ( 6 === (int) $this->exercise ) ? '$' . $product->price : $product->price;
-
-					$basket_products_array[] = '{ id: "' . esc_js( $sku ) . '", price: ' . esc_js( $product_price ). ', quantity: ' . esc_js( $values['quantity'] ) . ' }';
-				}
-			}
-
-			$basket_products = implode( ', ', $basket_products_array );
-
-			ob_start();
-			?>
-				<script type="text/javascript" src="//static.criteo.net/js/ld/ld.js" async="true"></script>
-				<script type="text/javascript">
-					window.criteo_q = window.criteo_q || [];
-					window.criteo_q.push(
-						{ event: "setAccount", account: <?php echo self::PARTNERID; ?> },
-						{ event: "setSiteType", type: "d" },
-						{ event: "viewBasket", item: [<?php echo $basket_products; ?>] }
-					);
-				</script>
-			<?php
-			$onetag = ob_get_clean();
-
-			echo $onetag;
-		}
-	}
-
-	/**
-	 * Render Sales tag.
-	 *
-	 * @param int $order_id The order ID
-	 *
-	 * @action woocommerce_thankyou
-	 */
-	function action_woocommerce_thankyou( $order_id = 0 ) {
-
-		if ( empty( $order_id ) ) {
-			return;
-		}
-
-		$order = wc_get_order( $order_id );
-		$items = $order->get_items();
-
-		if ( ! empty( $items ) ) {
-
-			$transaction_products_array = array();
-
-			foreach ( $items as $item ) {
-
-				$product = $order->get_product_from_item( $item );
-
-				$sku = $product->get_sku();
-
-				if ( ! empty( $product->parent ) ) {
-					$sku = $product->parent->get_sku();
-				}
-
-				if ( $sku ) {
-
-					$price = $product->price;
-
-					if ( 8 === (int) $this->exercise ) {
-						$price = $item['item_meta']['_line_total'][0];
-					}
-
-					if ( 9 === (int) $this->exercise ) {
-						$price = $product->regular_price;
-					}
-
-					$transaction_products_array[] = '{ id: "' . esc_js( $sku ) . '", price: ' . esc_js( $price ). ', quantity: ' . esc_js( $item['qty'] ) . ' }';
-				}
-			}
-
-			$transaction_products = implode( ', ', $transaction_products_array );
-
-			ob_start();
-			?>
-				<script type="text/javascript" src="//static.criteo.net/js/ld/ld.js" async="true"></script>
-				<script type="text/javascript">
-					window.criteo_q = window.criteo_q || [];
-					window.criteo_q.push(
-						{ event: "setAccount", account: <?php echo self::PARTNERID; ?> },
-						{ event: "setSiteType", type: "d" },
-						{ event: "trackTransaction" , id: <?php echo esc_js( $order_id ); ?>, item: [<?php echo $transaction_products ; ?>] }
-					);
-				</script>
-			<?php
-			$onetag = ob_get_clean();
-
-			echo $onetag;
-		}
-	}
-
-	/**
- 	 *
- 	 * Filter links to add exercise end point.
- 	 *
- 	 */
 
 	/**
 	 * Add exercise endpoint
@@ -444,57 +168,271 @@ class Criteo_OneTag {
 	}
 
 	/**
-	 * Add exercise endpoint to cart URL.
+	 * Render Home Page tag.
 	 */
-	function filter_woocommerce_get_cart_url( $url ) {
+	function render_home_page_tag() {
+		ob_start();
+		?>
+			<script type="text/javascript" src="//static.criteo.net/js/ld/ld.js" async="true"></script>
+			<script type="text/javascript">
+				window.criteo_q = window.criteo_q || [];
+				window.criteo_q.push(
+					{ event: "setAccount", account: <?php echo self::PARTNERID; ?> },
+					{ event: "setSiteType", type: "d" },
+					{ event: "viewHome"}
+				);
+			</script>
+		<?php
+		$onetag = ob_get_clean();
 
-		$url = trailingslashit( trailingslashit( $url ) . 'exercise/' . self::get_instance()->exercise );
-
-		return $url;
+		echo $onetag;
 	}
 
 	/**
-	 * Add exercise endpoint to checkout URL.
+	 * Render Listing tag.
 	 */
-	function filter_woocommerce_get_checkout_page_permalink( $url ) {
+	function render_listing_tag() {
 
-		$url = trailingslashit( trailingslashit( $url ) . 'exercise/' . self::get_instance()->exercise );
+		wp_reset_query();
 
-		return $url;
+		$product_ids_array = array();
+		$count = 0;
+
+		while ( have_posts() && $count < 3 ) {
+			the_post();
+
+			$product_ids_array[] = $this->get_sku();
+
+			$count++;
+		}
+
+		$product_ids = implode( ', ', $product_ids_array );
+
+		ob_start();
+		?>
+			<script type="text/javascript" src="//static.criteo.net/js/ld/ld.js" async="true"></script>
+			<script type="text/javascript">
+				window.criteo_q = window.criteo_q || [];
+				window.CriteoProductIDList = window.CriteoProductIDList || [];
+				window.criteo_q.push(
+					{ event: "setAccount", account: <?php echo self::PARTNERID; ?> },
+					{ event: "setSiteType", type: "d" },
+					<?php if ( is_tax( 'product_cat', 'hats' ) ) { ?>
+						{ event: "viewList", item: [] }
+					<?php } else if ( is_tax( 'product_cat', 'novelties' ) ) { ?>
+						{ event: "viewList", item: "<?php echo esc_js( $product_ids ); ?>" }
+					<?php } else { ?>
+						{ event: "viewList", item: [<?php echo esc_js( $product_ids ); ?>] }
+					<?php } ?>
+				);
+			</script>
+		<?php
+		$onetag = ob_get_clean();
+
+		echo $onetag;
+
+		wp_reset_query();
 	}
 
 	/**
- 	 *
- 	 *	Various filters.
- 	 *
- 	 */
-
-	/**
-	 * Disable cart widget.
+	 * Render Product tag.
 	 */
-	function filter_woocommerce_widget_cart_is_hidden( $disable ) {
+	function render_product_tag() {
+		global $post;
 
-		return true;
+		$post_id = empty( $post->ID ) ? 0 : $post->ID;
+
+		$product_id = $this->get_sku();
+
+		ob_start();
+		?>
+			<script type="text/javascript" src="//static.criteo.net/js/ld/ld.js" async="true"></script>
+			<script type="text/javascript">
+				window.criteo_q = window.criteo_q || [];
+				window.criteo_q.push(
+					{ event: "setAccount", account: <?php echo self::PARTNERID; ?> },
+					{ event: "setSiteType", type: "d" },
+					<?php if ( has_term( 'hats', 'product_cat' ) ) { ?>
+						{ event: "viewItem", item:  }
+					<?php } else if ( has_term( 'novelties', 'product_cat' ) ) { ?>
+						{ event: "viewItem", item: <?php echo esc_js( $post_id ); ?> }
+					<?php } else { ?>
+						{ event: "viewItem", item: <?php echo esc_js( $product_id ); ?> }
+					<?php } ?>
+				);
+			</script>
+		<?php
+		$onetag = ob_get_clean();
+
+		echo $onetag;
 	}
 
 	/**
-	 * Disable add to cart widget.
+	 * Render Basket tag.
 	 */
-	function filter_wc_add_to_cart_message( $message, $product_id ) {
+	function render_basket_tag() {
 
-		return '';
+		global $woocommerce;
+		$items = $woocommerce->cart->get_cart();
+
+		if ( ! empty( $items ) ) {
+
+			$basket_products_array = array();
+
+			$first_post = '';
+
+			foreach( $items as $item => $values ) {
+
+				$product = $values['data'];
+
+				if ( empty( $first_post ) ) {
+					$first_post = $product->post;
+				}
+
+				if ( $sku = $product->get_sku() ) {
+
+					if ( has_term( 'jerseys', 'product_cat', $first_post ) ) {
+
+						$random_number = mt_rand( 0, 90 );
+						$padded_random_number = str_pad( $random_number, 2, '0', STR_PAD_LEFT );
+
+						$sku = $sku . $padded_random_number;
+					}
+
+					$basket_products_array[] = '{ id: "' . esc_js( $sku ) . '", price: ' . esc_js( $product->price ). ', quantity: ' . esc_js( $values['quantity'] ) . ' }';
+				}
+			}
+
+			$seperator = has_term( 'hats', 'product_cat', $first_post ) ? '' : ', ';
+
+			$basket_products = implode( $seperator, $basket_products_array );
+
+			ob_start();
+			?>
+				<script type="text/javascript" src="//static.criteo.net/js/ld/ld.js" async="true"></script>
+				<script type="text/javascript">
+					window.criteo_q = window.criteo_q || [];
+					window.criteo_q.push(
+						{ event: "setAccount", account: <?php echo self::PARTNERID; ?> },
+						{ event: "setSiteType", type: "d" },
+						{ event: "viewBasket", item: [<?php echo $basket_products; ?>] }
+					);
+				</script>
+			<?php
+			$onetag = ob_get_clean();
+
+			echo $onetag;
+		}
 	}
 
 	/**
- 	 *
- 	 *	Rendering functions.
- 	 *
- 	 */
+	 * Render Sales tag.
+	 *
+	 * @param int $order_id The order ID
+	 *
+	 * @action woocommerce_thankyou
+	 */
+	function action_woocommerce_thankyou( $order_id = 0 ) {
+
+		if ( empty( $order_id ) ) {
+			return;
+		}
+
+		$order = wc_get_order( $order_id );
+		$items = $order->get_items();
+
+		if ( ! empty( $items ) ) {
+
+			$transaction_products_array = array();
+
+			$first_post = '';
+
+			foreach ( $items as $item ) {
+
+				$product = $order->get_product_from_item( $item );
+
+				if ( empty( $first_post ) ) {
+					$first_post = $product->post;
+				}
+
+				if ( $sku = $product->get_sku() ) {
+
+					$price = $product->price;
+
+					if ( has_term( 'jerseys', 'product_cat', $first_post ) ) {
+						$price = $item['item_meta']['_line_total'][0];
+					}
+
+					$transaction_products_array[] = '{ id: "' . esc_js( $sku ) . '", price: ' . esc_js( $price ). ', quantity: ' . esc_js( $item['qty'] ) . ' }';
+
+
+				}
+			}
+
+			$transaction_products = implode( ', ', $transaction_products_array );
+
+			$transaction_id = has_term( 'novelties', 'product_cat', $first_post ) ? 'TRANSACTION_ID' : $order_id;
+
+			ob_start();
+			?>
+				<script type="text/javascript" src="//static.criteo.net/js/ld/ld.js" async="true"></script>
+				<script type="text/javascript">
+					window.criteo_q = window.criteo_q || [];
+					window.criteo_q.push(
+						{ event: "setAccount", account: <?php echo self::PARTNERID; ?> },
+						{ event: "setSiteType", type: "d" },
+						{ event: "trackTransaction" , id: <?php echo esc_js( $transaction_id ); ?>, item: [<?php echo $transaction_products ; ?>] }
+					);
+				</script>
+			<?php
+			$onetag = ob_get_clean();
+
+			echo $onetag;
+		}
+	}
+
+	/**
+	 * Gets the SKU of the current product.
+	 *
+	 * @return string The SKU of the current product.
+	 */
+	function get_sku() {
+		global $product;
+
+		return $product->get_sku();
+	}
+
+	/**
+	 * Renders exercise select box.
+	 */
+	static function render_exercise_select_box() {
+		ob_start();
+			?>
+				<div class="site-search">
+					<label class="exercise-select-label"><?php _e( '- Select Exercise -', 'criteostorefrontchild' ); ?></label>
+					<select id="exercise-select">
+						<option class="exercise-select-option" value="/">Beginner - 1</option>
+						<option class="exercise-select-option" value="/">Beginner - 2</option>
+						<option class="exercise-select-option" value="/">Beginner - 3</option>
+						<option class="exercise-select-option" value="/">Intermediate - 1</option>
+						<option class="exercise-select-option" value="/">Intermediate - 2</option>
+						<option class="exercise-select-option" value="/">Intermediate - 3</option>
+						<option class="exercise-select-option" value="/">Advanced - 1</option>
+						<option class="exercise-select-option" value="/">Advanced - 2</option>
+						<option class="exercise-select-option" value="/">Advanced - 3</option>
+					</select>
+				</div>
+			<?php
+		$select_list = ob_get_clean();
+
+		echo $select_list;
+
+	}
 
 	/**
 	 * Override storefront_site_title_or_logo function.
 	 */
-	function site_title_or_logo() {
+	static function site_title_or_logo() {
 
 		add_filter( 'home_url', array( 'Criteo_OneTag', 'filter_home_url' ), 99 );
 
@@ -520,50 +458,6 @@ class Criteo_OneTag {
 	}
 
 	/**
-	 * Renders exercise select box.
-	 */
-	static function render_exercise_select_box() {
-
-		$exercise = self::get_instance()->exercise;
-		$exercises = self::get_instance()->exercises;
-
-		$current_url = '//' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
-
-		$pattern = '/exercise\/(\d+)/';
-
-		ob_start();
-		?>
-			<div class="site-search">
-				<label class="exercise-select-label"><?php _e( '- Select Exercise -', 'criteostorefrontchild' ); ?></label>
-				<select id="exercise-select">
-				<?php
-				for ( $i = 0; $i < count( $exercises ); $i++ ) {
-					if ( preg_match( $pattern, $current_url ) ) {
-						$exercise_url = preg_replace( $pattern, 'exercise/' . $i, $current_url );
-					} else {
-						$exercise_url = trailingslashit( trailingslashit( $current_url ) . 'exercise/' . $i );
-					}
-				?>
-					<option class="exercise-select-option" value="<?php echo esc_url( $exercise_url ); ?>" <?php selected( $exercise, $i ); ?>><?php echo esc_html( $exercises[ $i ]['level'] ); ?></option>
-				<?php
-				}
-				?>
-				</select>
-			</div>
-		<?php
-
-		$select_list = ob_get_clean();
-
-		echo $select_list;
-	}
-
-	/**
- 	 *
- 	 *	Getter functions.
- 	 *
- 	 */
-
-	/**
 	 * Add exercise endpoint to home URL.
 	 */
 	static function filter_home_url( $url ) {
@@ -574,29 +468,35 @@ class Criteo_OneTag {
 	}
 
 	/**
-	 * Get current exercise description.
+	 * Add exercise endpoint to cart URL.
 	 */
-	public function get_exercise_description() {
-		return $this->exercises[ $this->exercise ]['level'] . ': ' . $this->exercises[ $this->exercise ]['description'];
+	static function filter_woocommerce_get_cart_url( $url ) {
+
+		$url = trailingslashit( trailingslashit( $url ) . 'exercise/' . self::get_instance()->exercise );
+
+		//error_log( $url );
+
+		return $url;
 	}
 
 	/**
-	 * Get current exercise answer.
+	 * Disable cart widget.
 	 */
-	public function get_exercise_answer() {
-		return $this->exercises[ $this->exercise ]['answer'];
+	static function filter_woocommerce_widget_cart_is_hidden( $disable ) {
+
+		return true;
 	}
 
 	/**
-	 * Gets the SKU of the current product.
-	 *
-	 * @return string The SKU of the current product.
+	 * Add exercise endpoint to checkout URL.
 	 */
-	function get_sku() {
-		global $product;
+	static function filter_woocommerce_get_checkout_page_permalink( $url  ) {
 
-		return $product->get_sku();
+		$url = trailingslashit( trailingslashit( $url ) . 'exercise/' . self::get_instance()->exercise );
+
+		return $url;
 	}
+
 }
 
 Criteo_OneTag::get_instance();
